@@ -22,7 +22,7 @@ def login_to_rumble(username, password):
     login_button.click()
 
     # Wait for login to complete
-    time.sleep(15)
+    time.sleep(5)
 
     return driver
 
@@ -52,7 +52,28 @@ def upload_to_rumble(driver, video_file_path, title, description):
     upload_button = driver.find_element(By.ID, 'submitForm')  # Adjusted for the correct button ID
     upload_button.click()
 
-    # Wait for the upload to complete
+    # Wait for the upload to complete (adjust time as necessary)
+    time.sleep(10)
+
+    # Toggle the first checkbox: "You have not signed an exclusive agreement with any other parties."
+    checkbox_terms = driver.find_element(By.CSS_SELECTOR, 'label[for="crights"]')
+    checkbox_terms.click()
+
+    # Toggle the second checkbox: "Check here if you agree to our terms of service."
+    checkbox_terms = driver.find_element(By.CSS_SELECTOR, 'label[for="cterms"]')
+    checkbox_terms.click()
+
+    time.sleep(2)
+
+    # Scroll to the submit button
+    submit_button = driver.find_element(By.ID, 'submitForm2')
+    driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+
+    # Click the submit button
+    submit_button.click()
+
+
+    # Wait before quitting
     time.sleep(30)
 
     # Close the browser
