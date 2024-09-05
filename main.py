@@ -1,36 +1,59 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 import time
 
-def upload_to_rumble(video_file_path, title, description):
-    # Set up the webdriver (Make sure you have ChromeDriver installed)
+def upload_to_rumble(video_file_path, title, description, username, password):
+    # Set up the Chrome WebDriver (Make sure the path to chromedriver is correct)
     driver = webdriver.Chrome()
 
-    # Go to Rumble login page
-    driver.get("https://rumble.com/login")
+    # Open the Rumble login page
+    driver.get('https://rumble.com/login')
 
-    # Log in to Rumble
-    driver.find_element(By.NAME, "username").send_keys("your_rumble_username")
-    driver.find_element(By.NAME, "password").send_keys("your_rumble_password")
-    driver.find_element(By.NAME, "submit").click()
+    # Find the username and password fields and input the credentials
+    username_field = driver.find_element(By.ID, 'login-username')
+    password_field = driver.find_element(By.ID, 'login-password')
 
-    time.sleep(5)  # Wait for login to complete
+    # Input login credentials
+    username_field.send_keys(username)
+    password_field.send_keys(password)
 
-    # Navigate to upload page
-    driver.get("https://rumble.com/upload")
+    # Find the submit button and click it
+    login_button = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    login_button.click()
 
-    # Fill in the upload form
-    driver.find_element(By.ID, "video_file").send_keys(video_file_path)
-    driver.find_element(By.ID, "title").send_keys(title)
-    driver.find_element(By.ID, "description").send_keys(description)
+    # Wait for login to complete
+    time.sleep(10)
 
-    # Submit the form
-    driver.find_element(By.ID, "upload_button").click()
+    # Navigate to the upload page
+    driver.get('https://rumble.com/upload')
 
-    time.sleep(10)  # Wait for upload to complete
+    # Upload the video
+    video_input = driver.find_element(By.ID, 'Filedata')  # Correct ID for the video upload
+    video_input.send_keys(video_file_path)
 
+    # Fill in the title and description fields
+    title_input = driver.find_element(By.ID, 'title')  # OK Assuming 'title' is the correct element ID
+    description_input = driver.find_element(By.ID, 'description')  # OK Assuming 'description' is the correct element ID
+    title_input.send_keys(title)
+    description_input.send_keys(description)
+
+    # Find the upload button and click it
+    upload_button = driver.find_element(By.ID, 'submitForm')  # Correct ID for the upload button
+    upload_button.click()
+
+    # Wait for the upload to complete
+    time.sleep(10)
+
+    # Close the browser
     driver.quit()
 
-# Example usage
-upload_to_rumble('/path/to/your/video.mp4', 'My Video Title', 'My video description')
+with open("/home/alexm/Desktop/rumble_pw", 'r') as file:
+    password = file.read()
+
+# Example usage of the function
+upload_to_rumble(
+    '/home/alexm/Downloads/Automated Python script to find the World Localisation of Tor IP Addresses.mp4.mp4',
+    'Automated Python script to find the World Localisation of Tor IP Addresses',
+    'My video description',
+    username="alexandre.marcotte.1094@gmail.com",
+    password=password)
