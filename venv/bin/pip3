@@ -1,4 +1,4 @@
-#!/home/alexm/PycharmProjects/Sync_rumble_with_youtube_videos/venv/bin/python3
+#!/home/alexm/PycharmProjects/Sync_rumble_with_youtube_videos/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

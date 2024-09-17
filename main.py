@@ -72,7 +72,6 @@ def upload_to_rumble(driver, video_file_path, title, description):
     # Click the submit button
     submit_button.click()
 
-
     # Wait before quitting
     time.sleep(30)
 
