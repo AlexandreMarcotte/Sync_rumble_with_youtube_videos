@@ -22,7 +22,11 @@ class RumbleUploader:
     def _init_driver(self, driver_path):
         """Initializes the Chrome WebDriver."""
         options = webdriver.ChromeOptions()
-        options.add_argument("--start-maximized")
+        options.add_argument("--start-maximized")  # Ensure the window opens maximized
+        options.add_argument("--disable-gpu")  # Good for stability, disables GPU acceleration
+        options.add_argument("--disable-software-rasterizer")  # Prevent software rasterization
+        options.add_argument("--no-sandbox")  # Increases stability on Linux systems
+
         driver = webdriver.Chrome(executable_path=driver_path, options=options) if driver_path else webdriver.Chrome(
             options=options)
         return driver
@@ -64,7 +68,7 @@ class RumbleUploader:
         video_input = self.driver.find_element(By.ID, 'Filedata')
         video_input.send_keys(video_file_path)
 
-        # Fill in the title and description fields
+        # Fill in the title field
         title_input = self.driver.find_element(By.ID, 'title')
         title_input.send_keys(title)
 
@@ -76,9 +80,8 @@ class RumbleUploader:
         self.driver.execute_script("arguments[0].scrollIntoView(true);", upload_button)
 
         upload_button.click()
-        # Wait for the upload to complete
-        #time.sleep(5)
 
+        # Wait for the upload to complete
         self._wait_until_100_percent()
 
         # Agree to terms and conditions
@@ -90,34 +93,26 @@ class RumbleUploader:
         print(f"Video uploaded: {title}")
 
     def _select_podcast(self):
-        # Select Podcast category
+        """Selects Podcast as the category."""
         category_input = self.driver.find_element(By.CSS_SELECTOR, 'input[placeholder="- Primary category -"]')
         category_input.click()
         category_input.send_keys('P')
-        podcast_option = WebDriverWait(self.driver, 1).until(
+        podcast_option = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//div[contains(@class, 'select-option') and contains(text(), 'Podcast')]"))
         )
         podcast_option.click()
 
     def _agree_to_terms(self):
-        """
-        Clicks the checkboxes to agree to terms and conditions.
-        """
+        """Clicks the checkboxes to agree to terms and conditions."""
         print("Agreeing to terms and conditions...")
         checkbox_rights = self.driver.find_element(By.CSS_SELECTOR, 'label[for="crights"]')
         checkbox_terms = self.driver.find_element(By.CSS_SELECTOR, 'label[for="cterms"]')
         checkbox_rights.click()
         checkbox_terms.click()
 
-    import time
-
     def _wait_until_100_percent(self):
-        """
-               Scrolls to and submits the final form to complete the upload.
-               Waits for the upload progress to reach 100% before clicking the submit button,
-               while updating the current progress value every second.
-               """
+        """Waits for the upload progress to reach 100%."""
         print("Waiting for the upload to reach 100%...")
 
         # Poll the progress bar every second to track the current upload progress
@@ -127,31 +122,22 @@ class RumbleUploader:
         # Continuously check the progress until it reaches 100%
         while "100%" not in current_value:
             try:
-                # Fetch the current value of the progress bar
                 progress_bar = self.driver.find_element(*progress_selector)
                 current_value = progress_bar.text.strip()
-
-                # Print the current progress value
                 print(f"Current upload progress: {current_value}")
             except Exception as e:
                 print(f"Error fetching progress: {str(e)}")
                 current_value = ""
 
-            # Sleep for 1 second before checking again
             time.sleep(1)
 
         print("Upload complete, now submitting the form...")
 
     def _submit_final_form(self):
-
-        # Scroll to and find the submit button
+        """Submits the final form after the upload is complete."""
         submit_button = self.driver.find_element(By.ID, 'submitForm2')
         self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
-
-        # Click the submit button
         submit_button.click()
-
-        # Wait for the process to complete (wait for any post-submit redirects or loading)
         time.sleep(1)
 
     def close(self):
@@ -161,37 +147,58 @@ class RumbleUploader:
 
 
 def main():
+    ### USER-FRIENDLY CONFIGURATION ###
     # Folder where videos are located
-    video_folder = "/media/alexm/ALEXM_HDD/"
-    uploaded_folder = os.path.join(video_folder, "uploaded_video")
+    video_folder = "/media/alexm/ALEXM_HDD/"  # Change this to your folder with videos
+    uploaded_folder = os.path.join(video_folder, "uploaded_video")  # Folder to move uploaded videos
 
-    # Create "uploaded_video" folder if it doesn't exist
+    # Path to the file containing your Rumble password (optional)
+    password_file_path = "/home/alexm/Desktop/rumble_pw"  # Update this to the location of your password file
+
+    # Rumble account credentials
+    username = "alexandre.marcotte.1094@gmail.com"  # Change to your Rumble username
+    password = None  # Leave as None if using a password file
+
+    # Path to ChromeDriver (optional, only required if not set in your system PATH)
+    driver_path = None  # Update this if you need a specific path for your ChromeDriver
+
+    ### END OF CONFIGURATION ###
+
+    # Ensure that "uploaded_video" folder exists
     if not os.path.exists(uploaded_folder):
         os.makedirs(uploaded_folder)
         print(f"Created folder: {uploaded_folder}")
 
-    # Read the password from a file
-    with open("/home/alexm/Desktop/rumble_pw", 'r') as file:
-        password = file.read().strip()
+    # Read the password from the file if it's not provided directly
+    if not password and os.path.exists(password_file_path):
+        with open(password_file_path, 'r') as file:
+            password = file.read().strip()
+
+    # Check if we have all necessary information
+    if not username or not password:
+        print("Error: Rumble username and password are required. Please update the configuration.")
+        return
 
     # Initialize the RumbleUploader with credentials
-    uploader = RumbleUploader(
-        username="alexandre.marcotte.1094@gmail.com",
-        password=password
-    )
+    uploader = RumbleUploader(username=username, password=password, driver_path=driver_path)
 
     try:
         # Log in to Rumble
         uploader.login()
 
-        # Get list of all video files in the folder
-        video_files = [f for f in os.listdir(video_folder) if f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv'))]
+        # Get list of all video files in the folder, along with their modified times
+        video_files = [
+            f for f in os.listdir(video_folder)
+            if f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv'))
+        ]
 
-        # Loop through all video files and upload
+        # Sort video files by modified time (oldest first)
+        video_files = sorted(video_files, key=lambda x: os.path.getmtime(os.path.join(video_folder, x)))
+
+        # Loop through all video files and upload them based on the modified date
         for video_file in video_files:
             video_file_path = os.path.join(video_folder, video_file)
             title = os.path.splitext(video_file)[0]  # Use the filename (without extension) as title
-            #description = "Uploaded via automated script"  # Placeholder description
 
             # Try to upload the video
             try:
@@ -205,6 +212,7 @@ def main():
     finally:
         # Close the browser
         uploader.close()
+
 
 
 if __name__ == "__main__":
