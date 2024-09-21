@@ -1,7 +1,7 @@
 import os
 import shutil
-from selenium import webdriver
 import time
+from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -22,11 +22,10 @@ class RumbleUploader:
     def _init_driver(self, driver_path):
         """Initializes the Chrome WebDriver."""
         options = webdriver.ChromeOptions()
-        options.add_argument("--start-maximized")  # Ensure the window opens maximized
-        options.add_argument("--disable-gpu")  # Good for stability, disables GPU acceleration
-        options.add_argument("--disable-software-rasterizer")  # Prevent software rasterization
-        options.add_argument("--no-sandbox")  # Increases stability on Linux systems
-
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--no-sandbox")
         driver = webdriver.Chrome(executable_path=driver_path, options=options) if driver_path else webdriver.Chrome(
             options=options)
         return driver
@@ -55,7 +54,7 @@ class RumbleUploader:
 
         print("Login successful!")
 
-    def upload_video(self, video_file_path, title):
+    def upload_video(self, video_file_path, title, description):
         """
         Uploads a video to Rumble.
         :param video_file_path: Path to the video file to be uploaded
@@ -72,8 +71,15 @@ class RumbleUploader:
         title_input = self.driver.find_element(By.ID, 'title')
         title_input.send_keys(title)
 
+        # Fill in the title and description fields
+        description_input = self.driver.find_element(By.ID, 'description')  # Assuming 'description' is the correct element ID
+        description_input.send_keys(description)
+
+        time.sleep(2)
+
         # Select the Podcast category
         self._select_podcast()
+
 
         # Click the upload button
         upload_button = self.driver.find_element(By.ID, 'submitForm')
@@ -124,12 +130,12 @@ class RumbleUploader:
             try:
                 progress_bar = self.driver.find_element(*progress_selector)
                 current_value = progress_bar.text.strip()
-                print(f"Current upload progress: {current_value}")
+                #print(f"Current upload progress: {current_value}")
             except Exception as e:
                 print(f"Error fetching progress: {str(e)}")
                 current_value = ""
 
-            time.sleep(1)
+            time.sleep(0.1)
 
         print("Upload complete, now submitting the form...")
 
@@ -146,17 +152,91 @@ class RumbleUploader:
         self.driver.quit()
 
 
+### Main Function Clustered into Sub-functions ###
+
+def read_credentials(password_file_path, username, password):
+    """Reads credentials from file if needed."""
+    if not password and os.path.exists(password_file_path):
+        with open(password_file_path, 'r') as file:
+            password = file.read().strip()
+
+    if not username or not password:
+        raise ValueError("Rumble username and password are required.")
+
+    return username, password
+
+
+def ensure_folders_exist(uploaded_folder):
+    """Ensures the uploaded folder exists, creating it if needed."""
+    if not os.path.exists(uploaded_folder):
+        os.makedirs(uploaded_folder)
+        print(f"Created folder: {uploaded_folder}")
+
+
+def get_video_files(video_folder):
+    """Returns a sorted list of video files based on modified time (oldest first)."""
+    video_files = [
+        f for f in os.listdir(video_folder)
+        if f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm'))
+    ]
+
+    # Sort video files by modified time (oldest first)
+    video_files = sorted(video_files, key=lambda x: os.path.getmtime(os.path.join(video_folder, x)))
+    return video_files
+
+
+def upload_videos(uploader, video_files, video_folder, uploaded_folder):
+    """Uploads videos and tracks progress."""
+    total_videos = len(video_files)
+    upload_times = []
+
+    for index, video_file in enumerate(video_files, start=1):
+        video_file_path = os.path.join(video_folder, video_file)
+        title = os.path.splitext(video_file)[0]
+        description = """The Bible Way to Heaven in many Languages: 
+https://sfbc.bw2h.com/
+
+Church Website:
+https://www.fortressbaptistchurch.com/
+"""
+
+        # Calculate videos left and estimate time left
+        videos_left = total_videos - index
+        if upload_times:
+            avg_time_per_video = sum(upload_times) / len(upload_times)
+            estimated_time_left = avg_time_per_video * videos_left
+            print(f"Videos left to upload: {videos_left}, Estimated time left: {int(estimated_time_left // 60)} minutes, {int(estimated_time_left % 60)} seconds.")
+        else:
+            print(f"Videos left to upload: {videos_left}")
+
+        # Start upload and measure time
+        start_time = time.time()
+
+        try:
+            uploader.upload_video(video_file_path, title, description)
+            time_taken = time.time() - start_time
+            upload_times.append(time_taken)
+
+            # Move uploaded file to "uploaded_video" folder
+            shutil.move(video_file_path, os.path.join(uploaded_folder, video_file))
+            print(f"Moved {video_file} to {uploaded_folder}")
+        except Exception as e:
+            print(f"Failed to upload {video_file}: {str(e)}")
+
+
 def main():
     ### USER-FRIENDLY CONFIGURATION ###
     # Folder where videos are located
     video_folder = "/media/alexm/ALEXM_HDD/"  # Change this to your folder with videos
-    uploaded_folder = os.path.join(video_folder, "uploaded_video")  # Folder to move uploaded videos
+
+    # Folder to move uploaded videos
+    uploaded_folder = os.path.join(video_folder, "uploaded_video")  # Ensure this folder exists or is created
 
     # Path to the file containing your Rumble password (optional)
     password_file_path = "/home/alexm/Desktop/rumble_pw"  # Update this to the location of your password file
 
-    # Rumble account credentials
-    username = "alexandre.marcotte.1094@gmail.com"  # Change to your Rumble username
+    # Rumble account credentials (you can either provide directly or leave password as None to read from file)
+    username = "FortressBaptist@proton.me"  # Change to your Rumble username
     password = None  # Leave as None if using a password file
 
     # Path to ChromeDriver (optional, only required if not set in your system PATH)
@@ -164,55 +244,28 @@ def main():
 
     ### END OF CONFIGURATION ###
 
-    # Ensure that "uploaded_video" folder exists
-    if not os.path.exists(uploaded_folder):
-        os.makedirs(uploaded_folder)
-        print(f"Created folder: {uploaded_folder}")
+    # Read credentials
+    username, password = read_credentials(password_file_path, username, password)
 
-    # Read the password from the file if it's not provided directly
-    if not password and os.path.exists(password_file_path):
-        with open(password_file_path, 'r') as file:
-            password = file.read().strip()
+    # Ensure folders exist
+    ensure_folders_exist(uploaded_folder)
 
-    # Check if we have all necessary information
-    if not username or not password:
-        print("Error: Rumble username and password are required. Please update the configuration.")
-        return
-
-    # Initialize the RumbleUploader with credentials
+    # Initialize uploader
     uploader = RumbleUploader(username=username, password=password, driver_path=driver_path)
 
     try:
         # Log in to Rumble
         uploader.login()
 
-        # Get list of all video files in the folder, along with their modified times
-        video_files = [
-            f for f in os.listdir(video_folder)
-            if f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv'))
-        ]
+        # Get video files
+        video_files = get_video_files(video_folder)
 
-        # Sort video files by modified time (oldest first)
-        video_files = sorted(video_files, key=lambda x: os.path.getmtime(os.path.join(video_folder, x)))
-
-        # Loop through all video files and upload them based on the modified date
-        for video_file in video_files:
-            video_file_path = os.path.join(video_folder, video_file)
-            title = os.path.splitext(video_file)[0]  # Use the filename (without extension) as title
-
-            # Try to upload the video
-            try:
-                uploader.upload_video(video_file_path, title)
-                # If upload is successful, move the file to the "uploaded_video" folder
-                shutil.move(video_file_path, os.path.join(uploaded_folder, video_file))
-                print(f"Moved {video_file} to {uploaded_folder}")
-            except Exception as e:
-                print(f"Failed to upload {video_file}: {str(e)}")
+        # Upload videos
+        upload_videos(uploader, video_files, video_folder, uploaded_folder)
 
     finally:
         # Close the browser
         uploader.close()
-
 
 
 if __name__ == "__main__":
