@@ -8,7 +8,7 @@ from selenium.webdriver.common.by import By
 
 
 class RumbleUploader:
-    def __init__(self, username, password, driver_path=None):
+    def __init__(self, username, password, driver_path=None,  channel_name="FortressBaptist"):
         """
         Initializes the RumbleUploader with credentials and sets up the WebDriver.
         :param username: Rumble account username
@@ -18,6 +18,7 @@ class RumbleUploader:
         self.username = username
         self.password = password
         self.driver = self._init_driver(driver_path)
+        self.channel_name = channel_name
 
     def _init_driver(self, driver_path):
         """Initializes the Chrome WebDriver."""
@@ -54,7 +55,27 @@ class RumbleUploader:
 
         print("Login successful!")
 
-    def upload_video(self, video_file_path, title, description):
+    def select_channel(self, channel_name="Christian Hymns"):
+        """
+        Selects the desired channel on Rumble.
+        :param channel_name: Name of the channel to select (default is 'Christian Hymns')
+        """
+        print(f"Selecting channel: {channel_name}")
+
+        try:
+            # Locate the label element for the channel by its text
+            channel_label = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, f"//label[contains(text(), '{channel_name}')]"))
+            )
+
+            # Click on the label to select the radio button
+            channel_label.click()
+
+            print(f"Channel '{channel_name}' selected.")
+        except Exception as e:
+            print(f"Error selecting channel '{channel_name}': {e}")
+
+    def upload_video(self, video_file_path, title, description,  channel_name="ChristianHymns"):
         """
         Uploads a video to Rumble.
         :param video_file_path: Path to the video file to be uploaded
@@ -75,11 +96,20 @@ class RumbleUploader:
         description_input = self.driver.find_element(By.ID, 'description')  # Assuming 'description' is the correct element ID
         description_input.send_keys(description)
 
-        time.sleep(2)
+        time.sleep(1)
 
         # Select the Podcast category
         self._select_podcast()
 
+        time.sleep(1)
+
+        # Add tags
+        self._add_tags()
+        time.sleep(1)
+
+        # Select the appropriate channel
+        self.select_channel()
+        time.sleep(1)
 
         # Click the upload button
         upload_button = self.driver.find_element(By.ID, 'submitForm')
@@ -97,6 +127,23 @@ class RumbleUploader:
         self._submit_final_form()
 
         print(f"Video uploaded: {title}")
+
+    def _add_tags(self):
+        """Adds a list of tags to the Tags input box."""
+        tags_list = ["#Bible", "#Christian", "#Hymns", "#song", "#choir", "#Church", "#KJV", "#faith", "#Jesus", "#Christ",
+            "#Praise", "#music", "#Worship"]
+
+        print("Adding tags...")
+
+        # Find the tags input field
+        tags_input = self.driver.find_element(By.CSS_SELECTOR, 'input[name="tags"]')
+
+        # Add each tag separated by a comma
+        for tag in tags_list:
+            tags_input.send_keys(tag)
+            tags_input.send_keys(", ")
+
+        print("Tags added successfully.")
 
     def _select_podcast(self):
         """Selects Podcast as the category."""
@@ -195,9 +242,6 @@ def upload_videos(uploader, video_files, video_folder, uploaded_folder):
         title = os.path.splitext(video_file)[0]
         description = """The Bible Way to Heaven in many Languages: 
 https://sfbc.bw2h.com/
-
-Church Website:
-https://www.fortressbaptistchurch.com/
 """
 
         # Calculate videos left and estimate time left
@@ -227,7 +271,7 @@ https://www.fortressbaptistchurch.com/
 def main():
     ### USER-FRIENDLY CONFIGURATION ###
     # Folder where videos are located
-    video_folder = "/media/alexm/ALEXM_HDD/"  # Change this to your folder with videos
+    video_folder = "/media/alexm/ALEXM_HDD/DanielBaptist1611"  # Change this to your folder with videos
 
     # Folder to move uploaded videos
     uploaded_folder = os.path.join(video_folder, "uploaded_video")  # Ensure this folder exists or is created
@@ -236,8 +280,11 @@ def main():
     password_file_path = "/home/alexm/Desktop/rumble_pw"  # Update this to the location of your password file
 
     # Rumble account credentials (you can either provide directly or leave password as None to read from file)
-    username = "FortressBaptist@proton.me"  # Change to your Rumble username
+    username = "alexandre.marcotte.1094@gmail.com"  # Change to your Rumble username
     password = None  # Leave as None if using a password file
+
+    # Set the name of you channel if there is a secondary channel (UPLOAD TO BOX)
+    channel_name = "FortressBaptist"
 
     # Path to ChromeDriver (optional, only required if not set in your system PATH)
     driver_path = None  # Update this if you need a specific path for your ChromeDriver
@@ -251,7 +298,7 @@ def main():
     ensure_folders_exist(uploaded_folder)
 
     # Initialize uploader
-    uploader = RumbleUploader(username=username, password=password, driver_path=driver_path)
+    uploader = RumbleUploader(username=username, password=password, driver_path=driver_path,  channel_name=channel_name)
 
     try:
         # Log in to Rumble
