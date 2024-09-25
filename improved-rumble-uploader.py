@@ -105,7 +105,7 @@ class RumbleUploader:
 
         # Add tags
         self._add_tags()
-        time.sleep(1)
+        time.sleep(3)
 
         # Select the appropriate channel
         self.select_channel()
@@ -149,10 +149,10 @@ class RumbleUploader:
         """Selects Podcast as the category."""
         category_input = self.driver.find_element(By.CSS_SELECTOR, 'input[placeholder="- Primary category -"]')
         category_input.click()
-        category_input.send_keys('P')
+        category_input.send_keys('M')
         podcast_option = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//div[contains(@class, 'select-option') and contains(text(), 'Podcast')]"))
+                (By.XPATH, "//div[contains(@class, 'select-option') and contains(text(), 'Music')]"))
         )
         podcast_option.click()
 
@@ -284,7 +284,7 @@ def main():
     password = None  # Leave as None if using a password file
 
     # Set the name of you channel if there is a secondary channel (UPLOAD TO BOX)
-    channel_name = "FortressBaptist"
+    channel_name = "ChristianHymns"
 
     # Path to ChromeDriver (optional, only required if not set in your system PATH)
     driver_path = None  # Update this if you need a specific path for your ChromeDriver
